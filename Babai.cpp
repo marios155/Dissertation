@@ -13,7 +13,7 @@
 using namespace std;
 using namespace fplll;
 
-//Compile using these flags: g++ -std=c++1 -O3 -march=native Babai.cpp -lfpll -lgm -lmpfr -o Babai
+//Compile using these flags: g++ -std=c++1 -O3 -march=native Babai.cpp -lfpll -lmpfr -lgmp  -o Babai
 //Run with ./Babai
 
 
