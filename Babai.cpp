@@ -9,6 +9,7 @@
 #include <fplll/wrapper.h>
 #include <fplll/gso.h>
 #include <fplll/gso_interface.h>
+#include <fplll/wrapper.h>
 
 using namespace std;
 using namespace fplll;
@@ -60,14 +61,24 @@ Matrix<FP_NR<double>> gSO (ZZ_mat<mpz_t> base, Matrix<FP_NR<double>> &gramBase) 
 
 }
 
-/*
+/** This function implements default LLL reduction on base of lattice
 	
-	@param:
+	@param ZZ_mat<mpz_t> base: The base of the lattice, a Matrix of intgers, called by reference
 
 
 */
 
+void reduceLLL (ZZ_mat<mpz_t> &base) {
 
+	ZZ_mat<mpz_t> identity;//Identity matrix of integers, used in LLL
+	ZZ_mat<mpz_t> idTrans;//Transposed version of identity
+	Wrapper *wrapper = new Wrapper(base, identity, idTrans, 0.99, 0.51, LLL_DEFAULT);//This class implements lll-reduction, with a plethora of types
+																					 // based on data type of lattice base and other requirements
+	bool status = wrapper->lll();// LLL-reductiuon is called here, parameters already given to the wrapper: δ = 0.99, ε = 0.51
+	cout << status << endl;//if TRUE (1) reduction was successful
+	cout << endl;
+
+}
 
 int main() {
 
@@ -83,5 +94,10 @@ int main() {
 	cout << endl;
 	cout << gramBase << endl;//Print GSO-ed base
 	cout << endl;
+	cout << "LLL-reduction on base " << endl;
+	cout << endl;
+	reduceLLL(nRandBase);
+	cout << nRandBase << endl;
+	cout<< endl;
 
 }
