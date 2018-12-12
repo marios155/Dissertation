@@ -13,6 +13,10 @@
 using namespace std;
 using namespace fplll;
 
+//Compile using these flags: g++ -std=c++1 -O3 -march=native Babai.cpp -lfpll -lgm -lmpfr -o Babai
+//Run with ./Babai
+
+
 /* Function that generates base for Lattice of given dimension, with or without random seed
 	
 	@param ZZ_mat<mpz_t> &base: The base of our Lattice, a Matrix of integers (we use the FPLLL's Matrix struct as the lattice base's data type). This is called by reference.
@@ -55,6 +59,13 @@ Matrix<FP_NR<double>> gSO (ZZ_mat<mpz_t> base, Matrix<FP_NR<double>> &gramBase) 
 	return gramBase;// Return GSO-ed base
 
 }
+
+/*
+	
+	@param:
+
+
+*/
 
 
 
