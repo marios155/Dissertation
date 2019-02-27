@@ -1,5 +1,5 @@
 #include <iostream>
-//#include "mp2mpfr.h"
+#include <time.h>
 #include <gmp.h>
 #include <mpfr.h>
 #include <fplll.h>
@@ -10,46 +10,79 @@
 #include <fplll/gso.h>
 #include<fplll/gso_gram.h>
 #include <fplll/gso_interface.h>
-#include <fplll/wrapper.h>
 #include <math.h>
 #include <fplll/nr/numvect.h>
-
 using namespace std;
 using namespace fplll;
 
 //Compile using these flags: g++ -std=c++11 -O3 -march=native Babai.cpp -lfplll -lmpfr -lgmp  -o Babai
 //Run with ./Babai
 
-/* Function that calculates the dot product of two vectors (must be generic type as data may be of many data types, either from fplll's data or standard data)
+/** Function that initializes a vector of given dimension with random numbers
 	
-	@param DataType1 vector1: First vector, called by explicit reference (bound to temporary object)
-	@param Datatype 2 vector2: Second vector, same as vector1
-	@param int length1: length of first vector
-	@param: length of second vector
-	@return: Sum, result of dot product of two vectors, of type equal to that presented
+	@param NumVect<FP_NR<T>> vector: Vector to be randomized, called by reference
+	@return: vector, randomized by rand()
 
 */
 
+template <class T> NumVect<FP_NR<T>> randomSet (NumVect<FP_NR<T>> &vector) {
+	
+	for (int i = 0; i < vector.size(); i++) {
+
+		vector[i] = rand();// Instantiate each element by a random number, generated here
+
+	}
+	return vector;
+
+}
+
+/** This function multiplies the coefficients of a given vector vector by a number num.
+	@param: MatrixRow<Z_NR<U>> vector: This is a vector of integers, in NPA the initial integer lattice base.
+	@param FP_NR<T>> num: Number by which to multiply coefficients
+	@return: result, vector multiplied by num
+
+*/
 
 template <class T, class U> NumVect<FP_NR<T>> mult (MatrixRow<Z_NR<U>> &&vector, FP_NR<T> num){
 	
 	NumVect<FP_NR<T>> result(vector.size());
 	for (int i = 0; i < vector.size(); i++) {
 
-		result[i].mul(num, vector[i].get_ld(), GMP_RNDN);
+		result[i].mul(num, vector[i].get_ld(), GMP_RNDN);// This is FP_NR class's function to implement multiplication,
+														 // allowing us to avoid confusing mpfr ang mpz functions in case
+														 // of usage of MPFR or GMP Libraries.
 	}
 	return result;
 
 }
 
+/** This function multiplies the coefficients of a given vector vector by a number num.
+	@param: MatrixRow<FP_NR<T>> vector: This is a vector of floating point numbers, in NPA the GSO-ed lattice base.
+	@param FP_NR<T>> num: Number by which to multiply coefficients
+	@return: result, vector multiplied by num
+
+*/
+
+
 template <class T> NumVect<FP_NR<T>> multRow (MatrixRow<FP_NR<T>> &&row, FP_NR<T> num) {
 	NumVect<FP_NR<T>> toReturn(row.size());
 	for (int i = 0; i < row.size(); i++) {
 
-		toReturn[i].mul(row[i], num, GMP_RNDN);
+		toReturn[i].mul(row[i], num, GMP_RNDN);// See comments of mult() function above
 	}
 	return toReturn;
 }
+
+/** Function that calculates the dot product of two vectors (must be generic type as data may be of many data types, either from fplll's data or standard data)
+	
+	@param NumVect<FP_NR<T>> vector1: First vector, called by explicit reference (bound to temporary object). This is a vector of type NumVect.
+	@param MatrixRow<FP_NR<T>> vector2: Second vector, same as vector1. This is a vector of type, MatrixRow, fplll's data type to represent vectors
+	of lattice bases and GSO-ed bases
+	@param int length1: length of first vector
+	@param: length of second vector
+	@return: Sum, result of dot product of two vectors, of type equal to that presented
+
+*/
 
 template <class T> FP_NR<T> dotProduct (NumVect<FP_NR<T>> &vector1, MatrixRow<FP_NR<T>> &&vector2, int length1, int length2) {
 	
@@ -63,6 +96,18 @@ template <class T> FP_NR<T> dotProduct (NumVect<FP_NR<T>> &vector1, MatrixRow<FP
 	return sum;
 
 }
+
+/** Function that calculates the dot product of two vectors (must be generic type as data may be of many data types, either from fplll's data or standard data)
+	
+	@param MatrixRow<FP_NR<T>> vector1: First vector, called by explicit reference (bound to temporary object). This is a vector of type
+	MatrixRow, fplll's data type to represent vectors of lattice bases and GSO-ed bases.
+	@param MatrixRow<FP_NR<T>> vector2: Second vector, same as vector1. This is a vector of type, MatrixRow, fplll's data type to represent vectors
+	of lattice bases and GSO-ed bases.
+	@param int length1: length of first vector
+	@param: length of second vector
+	@return: Sum, result of dot product of two vectors, of type equal to that presented
+
+*/
 
 template <class T> FP_NR<T> dotProduct (MatrixRow<FP_NR<T>> vector1, MatrixRow<FP_NR<T>> vector2, int length1, int length2) {
 	
@@ -127,7 +172,7 @@ Matrix<FP_NR<mpfr_t>> gSO (ZZ_mat<mpz_t> base, Matrix<FP_NR<mpfr_t>> &gramBase) 
 	gramBase = wrapper.get_r_matrix();// Get the Gram-Schmidt orthogonized base here
 	for (int i = 0; i < dimension -1; i++) {
 		for (int j = dimension - 1; j > i; j--){
-			gramBase[i][j] = 0.0;//Clear @NaN@ flag of MPFR and replace with zero (when double, unnecessary-possible fplll bug?)
+			gramBase[i][j] = 0.0;//Clear @NaN@ flag of MPFR and replace with zero (when the data type is double, this is unnecessary-possible fplll bug?)
 		}
 	}
 	return gramBase;// Return GSO-ed base
@@ -153,30 +198,38 @@ void reduceLLL (ZZ_mat<mpz_t> &base) {
 
 }
 
-
+/** Function that implements Babai's Nearest Plane Algorithm for given target vector. Preprocessing is considered done.
+	
+	@param ZZ_mat<mpz_t> base: Base of integer lattice, reduced either by LLl or BKZ (choice to be implemented)
+	@param Matrix<FP_NR<mpfr_t>> gramBase: GSO-ed Lattice base of above lattice.
+	@param NumVect<FP_NR<mpfr_t>> target_vector: Target vecto for which NP vector will be calculated
+	@return: toReturn, NumVect<FP_NR<mpfr_t>> type, Nearest Plane vector
+*/
 
 NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> &base, Matrix<FP_NR<mpfr_t>> &gramBase, NumVect<FP_NR<mpfr_t>> target_vector, int dim) {
-
+	// See pseudocode of NPA presented in "The (R)LWE problem on cryptography" master thesis by Michael Anastasiadis, pp. 29-30
+	//link here: https://ikee.lib.auth.gr/record/300429/?ln=el
 	NumVect<NumVect<FP_NR<mpfr_t>>> w(dim);
 	NumVect<NumVect<FP_NR<mpfr_t>>> u(dim);
 	u.resize(dim, dim);
 	NumVect<FP_NR<mpfr_t>> toReturn(dim);
 	toReturn.gen_zero(dim);
 	NumVect<FP_NR<mpfr_t>> l(dim);
-	NumVect<FP_NR<mpfr_t>> l_unRND(dim);
+	FP_NR<mpfr_t> l_unRND = 0.0;
 	NumVect<FP_NR<mpfr_t>> gSOMult(dim);
 	w[dim - 1] = target_vector;
 	for (int i = dim - 1; i > 0; i--) {
+		//l[i] =  <b[i], b[i]*> / <b[i]*, b[i]*>
 		l[i] = dotProduct(w[dim - 1], gramBase[i], w[dim - 1].size(), gramBase[i].size()) / dotProduct(gramBase[i], gramBase[i], gramBase[i].size(),gramBase[i].size());
-		cout << l[i] << endl;
-		l_unRND[i] = l[i];
-		l[i].rnd(l[i]);
-		u[i] = mult(base[i], l[i]);
+		l_unRND = l[i];// Unrounded l[i]
+		l[i].rnd(l[i]);// round l[i], function is void, so affects object, hence the existence of l_unRND[i]
+		u[i] = mult(base[i], l[i]);// y[i] = round(l[i]) * b[i]
 		toReturn.add(u[i]);
-		gSOMult = multRow(gramBase[i], (l_unRND[i] - l[i]));
+		gSOMult = multRow(gramBase[i], (l_unRND - l[i])); // this equals (l[i] - round(l[i]) * b[i]*)
 		w[i - 1] = w[i];
 		w[i - 1].sub (gSOMult);
 		w[i - 1].sub(u[i]);
+		//Above four operations mean w[i -1] = w[i] - (l[i] - round(l[i]) * b[i]* - l[i]b[i]
 
 	}
 	return toReturn;
@@ -189,23 +242,33 @@ int main() {
 
 	ZZ_mat<mpz_t> nRandBase;//Non-rand base
 	Matrix<FP_NR<mpfr_t>> gramBase;// Soon - to - be GSO-ed base of above base
-	NumVect<FP_NR<mpfr_t>> target (5, 3.0);
-	NumVect<FP_NR<mpfr_t>> test (5);
+	gramBase.resize(5, 5);// Resize matrix according to dimension given
+	gramBase.fill(0.0);// Initialize with zeroes
+	NumVect<FP_NR<mpfr_t>> target (5);// Target vector for NPA
+	target = randomSet (target);// Randomize target vector
+	NumVect<FP_NR<mpfr_t>> test (5);// This is the return vector of NPA
+	test.fill(0.0); // Instantiate with zeroes
 	nRandBase = latticeGen(nRandBase, 5, 0);//Generate Lattice here
 	gramBase = gSO(nRandBase, gramBase); // GSO base here
 	cout << "Non-Random Lattice base of dimension 5" << endl;
 	cout << endl;
-	cout << nRandBase << endl;//Print lattice base
+	cout << nRandBase << endl;// Print lattice base
 	cout << endl;
 	cout << "Base orthogonized by Gram-Schmidt orthogonization" << endl;
-	cout << gramBase << endl;
+	cout << gramBase << endl;// Print GSO-ed base
 	cout << endl;
  	cout << "LLL-reduction on base " << endl;
 	cout << endl;
-	reduceLLL(nRandBase);
-	cout << nRandBase << endl;
+	reduceLLL(nRandBase);// Reduce base here
+	cout << nRandBase << endl;// Print LLL-ed base here
 	cout << endl;
-	test = babai (nRandBase, gramBase, target, 5);
-	cout << test << endl;
+	cout << "Random Target Vector on which NPA will be performed" << endl;
+	cout << endl;
+	cout << target << endl;// Print target vector
+	cout << endl;
+	cout << "Nearest Plane Vector for random target vector" << endl;
+	cout << endl; 
+	test = babai (nRandBase, gramBase, target, 5);// NPA is executed here
+	cout << test << endl;// Print Nearest Plane vector
 	cout << endl;
 }
