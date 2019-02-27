@@ -31,6 +31,25 @@ using namespace fplll;
 */
 
 
+template <class T, class U> NumVect<FP_NR<T>> mult (MatrixRow<Z_NR<U>> &&vector, FP_NR<T> num){
+	
+	NumVect<FP_NR<T>> result(vector.size());
+	for (int i = 0; i < vector.size(); i++) {
+
+		result[i].mul(num, vector[i].get_ld(), GMP_RNDN);
+	}
+	return result;
+
+}
+
+template <class T> NumVect<FP_NR<T>> multRow (MatrixRow<FP_NR<T>> &&row, FP_NR<T> num) {
+	NumVect<FP_NR<T>> toReturn(row.size());
+	for (int i = 0; i < row.size(); i++) {
+
+		toReturn[i].mul(row[i], num, GMP_RNDN);
+	}
+	return toReturn;
+}
 
 template <class T> FP_NR<T> dotProduct (NumVect<FP_NR<T>> &vector1, MatrixRow<FP_NR<T>> &&vector2, int length1, int length2) {
 	
@@ -108,7 +127,7 @@ Matrix<FP_NR<mpfr_t>> gSO (ZZ_mat<mpz_t> base, Matrix<FP_NR<mpfr_t>> &gramBase) 
 	gramBase = wrapper.get_r_matrix();// Get the Gram-Schmidt orthogonized base here
 	for (int i = 0; i < dimension -1; i++) {
 		for (int j = dimension - 1; j > i; j--){
-			gramBase[i][j] = 0.0;
+			gramBase[i][j] = 0.0;//Clear @NaN@ flag of MPFR and replace with zero (when double, unnecessary-possible fplll bug?)
 		}
 	}
 	return gramBase;// Return GSO-ed base
@@ -139,17 +158,28 @@ void reduceLLL (ZZ_mat<mpz_t> &base) {
 NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> &base, Matrix<FP_NR<mpfr_t>> &gramBase, NumVect<FP_NR<mpfr_t>> target_vector, int dim) {
 
 	NumVect<NumVect<FP_NR<mpfr_t>>> w(dim);
-	ZZ_mat<mpz_t> u;
+	NumVect<NumVect<FP_NR<mpfr_t>>> u(dim);
 	u.resize(dim, dim);
 	NumVect<FP_NR<mpfr_t>> toReturn(dim);
+	toReturn.gen_zero(dim);
 	NumVect<FP_NR<mpfr_t>> l(dim);
+	NumVect<FP_NR<mpfr_t>> l_unRND(dim);
+	NumVect<FP_NR<mpfr_t>> gSOMult(dim);
 	w[dim - 1] = target_vector;
-	for (int i = dim - 1; i >= 0; i--) {
+	for (int i = dim - 1; i > 0; i--) {
 		l[i] = dotProduct(w[dim - 1], gramBase[i], w[dim - 1].size(), gramBase[i].size()) / dotProduct(gramBase[i], gramBase[i], gramBase[i].size(),gramBase[i].size());
-		//w[i - 1] = w[i] - (l[i] - (mpz_t) round(l[i])) * gramBase[i] - u[i];
+		cout << l[i] << endl;
+		l_unRND[i] = l[i];
+		l[i].rnd(l[i]);
+		u[i] = mult(base[i], l[i]);
+		toReturn.add(u[i]);
+		gSOMult = multRow(gramBase[i], (l_unRND[i] - l[i]));
+		w[i - 1] = w[i];
+		w[i - 1].sub (gSOMult);
+		w[i - 1].sub(u[i]);
 
 	}
-	return l;
+	return toReturn;
 
 }
 
