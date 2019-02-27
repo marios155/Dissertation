@@ -8,9 +8,11 @@
 #include "fplll/util.h"
 #include <fplll/wrapper.h>
 #include <fplll/gso.h>
+#include<fplll/gso_gram.h>
 #include <fplll/gso_interface.h>
 #include <fplll/wrapper.h>
 #include <math.h>
+#include <fplll/nr/numvect.h>
 
 using namespace std;
 using namespace fplll;
@@ -29,11 +31,25 @@ using namespace fplll;
 */
 
 
-template <class DataType1, class DataType2> FP_NR<DataType1> dotProduct (vector<FP_NR<DataType1>> &vector1, MatrixRow<FP_NR<DataType2>> &&vector2, int length1, int length2) {
+
+template <class T> FP_NR<T> dotProduct (NumVect<FP_NR<T>> &vector1, MatrixRow<FP_NR<T>> &&vector2, int length1, int length2) {
 	
-	FP_NR<DataType1> sum = FP_NR<DataType1> (0.0);
+	FP_NR<T> sum = FP_NR<T> (0.0);
 	int i = max(length1, length2);
-	for (int j = 0; j= i - 1; j++) {
+	for (int j = 0; j <= i - 1; j++) {
+
+		sum = sum + vector1[j]*vector2[j];
+
+	}
+	return sum;
+
+}
+
+template <class T> FP_NR<T> dotProduct (MatrixRow<FP_NR<T>> vector1, MatrixRow<FP_NR<T>> vector2, int length1, int length2) {
+	
+	FP_NR<T> sum = 0.0;
+	int i = max(length1, length2);
+	for (int j = 0; j <= i - 1; j++) {
 
 		sum = sum + vector1[j]*vector2[j];
 
@@ -43,50 +59,10 @@ template <class DataType1, class DataType2> FP_NR<DataType1> dotProduct (vector<
 
 }
 
-template <class DataType1, class DataType2> FP_NR<DataType1> dotProduct (MatrixRow<FP_NR<DataType1>> &&vector1, MatrixRow<FP_NR<DataType2>> &&vector2, int length1, int length2) {
-	
-	FP_NR<DataType1> sum = FP_NR<DataType1> (0.0);
-	int i = max(length1, length2);
-	for (int j = 0; j= i - 1; j++) {
-
-		sum = sum + vector1[j]*vector2[j];
-
-	}
-
-	return sum;
-
-}
 
 
-template <class T> vector<FP_NR<T>> operator+ (vector<FP_NR<T>> && vector, MatrixRow<FP_NR<T>> &&mRow) {
 
-	for (int i = 0; i == vector.size(); i++) {
-		vector[i] = vector[i] + mRow[i];
-	}
-	return vector;
-}
 
-template <class T> MatrixRow<Z_NR<T>> operator* (Z_NR<T> anInt, MatrixRow<Z_NR<T>> aVector) {
-	
-	for (int i = 0; i == aVector.size(); i++) {
-
-		aVector[i] = aVector[i] * anInt;
-
-	}
-	
-	return aVector;  
-}
-
-template <class T> MatrixRow<FP_NR<T>> operator* (FP_NR<T> aFloat, MatrixRow<FP_NR<T>> aVector) {
-	
-	for (int i = 0; i == aVector.size(); i++) {
-
-		aVector[i] = aVector[i] * aFloat;
-
-	}
-	
-	return aVector;  
-}
 
 /* Function that generates base for Lattice of given dimension, with or without random seed
 	
@@ -119,16 +95,22 @@ ZZ_mat<mpz_t> latticeGen(ZZ_mat<mpz_t> &base, int dim, bool isRandom) {
 
 */
 
-Matrix<FP_NR<double>> gSO (ZZ_mat<mpz_t> base, Matrix<FP_NR<double>> &gramBase) {
+Matrix<FP_NR<mpfr_t>> gSO (ZZ_mat<mpz_t> base, Matrix<FP_NR<mpfr_t>> &gramBase) {
 
-	int dimension = base.get_cols();//Since base is uniform, both dimensions equal its columns. These we get here.
+	int dimension = base.get_cols();//Retrieve dimension of lattice
+	gramBase.resize(dimension, dimension);
 	ZZ_mat<mpz_t> identity;//Identity matrix, used in the DEFAULT_GSO method
-	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix
-	MatGSO<Z_NR<mpz_t>, FP_NR<double>> wrapper (base, identity, idTrans, GSO_DEFAULT);// This wrapper is a class that allows us to work with all GSO-related algorithms and data
+	ZZ_mat<mpz_t> idTrans;
+	idTrans.transpose();//Transposed ID matrix
+	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> wrapper (base, identity, idTrans, GSO_INT_GRAM);// This wrapper is a class that allows us to work with all GSO-related algorithms and data
 	 																					//conversions required
-	gramBase.resize(dimension, dimension);//Resize gramBase according to dimensions of base
 	wrapper.update_gso();// Run GSO algorithm with the method selected in constructor (See Documentation for more information)
 	gramBase = wrapper.get_r_matrix();// Get the Gram-Schmidt orthogonized base here
+	for (int i = 0; i < dimension -1; i++) {
+		for (int j = dimension - 1; j > i; j--){
+			gramBase[i][j] = 0.0;
+		}
+	}
 	return gramBase;// Return GSO-ed base
 
 }
@@ -147,31 +129,27 @@ void reduceLLL (ZZ_mat<mpz_t> &base) {
 	Wrapper *wrapper = new Wrapper(base, identity, idTrans, 0.99, 0.51, LLL_DEFAULT);//This class implements lll-reduction, with a plethora of types
 																					 // based on data type of lattice base and other requirements
 	bool status = wrapper->lll();// LLL-reductiuon is called here, parameters already given to the wrapper: δ = 0.99, ε = 0.51
-	cout << status << endl;//if TRUE (1) reduction was successful
-	cout << endl;
+	//cout << status << endl;//if TRUE (1) reduction was successful
+	//cout << endl;
 
 }
 
 
 
-void babai (ZZ_mat<mpz_t> &base, Matrix<FP_NR<double>> &gramBase, NumVector<FP_NR<double>> target_vector, int dim) {
+NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> &base, Matrix<FP_NR<mpfr_t>> &gramBase, NumVect<FP_NR<mpfr_t>> target_vector, int dim) {
 
-	NumVector<NumVector<FP_NR<double>>> w(dim);
-	NumVector<NumVector<FP_NR<double>>> u(dim);
-	NumVector<FP_NR<double>> toReturn(dim);
-	w[dim] = target_vector;
-	int vectorLength = target_vector.size();
-	int rowLength = 0;
-	int length = 0;
-	vector<FP_NR<double>> l(dim);
-	for (int i = dim - 1; i = 0; i++) {
-		length = w[i].size();
-		l[i] = dotProduct(w[i], gramBase[i], length, gramBase[i].size()) / dotProduct(gramBase[i], gramBase[i], gramBase[i].size(), gramBase[i].size());
-		u[i] = (mpz_t) round(l[i]) * base[i];
-		w[i - 1] = w[i] - (l[i] - (mpz_t) round(l[i])) * gramBase[i] - u[i];
+	NumVect<NumVect<FP_NR<mpfr_t>>> w(dim);
+	ZZ_mat<mpz_t> u;
+	u.resize(dim, dim);
+	NumVect<FP_NR<mpfr_t>> toReturn(dim);
+	NumVect<FP_NR<mpfr_t>> l(dim);
+	w[dim - 1] = target_vector;
+	for (int i = dim - 1; i >= 0; i--) {
+		l[i] = dotProduct(w[dim - 1], gramBase[i], w[dim - 1].size(), gramBase[i].size()) / dotProduct(gramBase[i], gramBase[i], gramBase[i].size(),gramBase[i].size());
+		//w[i - 1] = w[i] - (l[i] - (mpz_t) round(l[i])) * gramBase[i] - u[i];
 
 	}
-	
+	return l;
 
 }
 
@@ -180,8 +158,9 @@ void babai (ZZ_mat<mpz_t> &base, Matrix<FP_NR<double>> &gramBase, NumVector<FP_N
 int main() {
 
 	ZZ_mat<mpz_t> nRandBase;//Non-rand base
-	Matrix<FP_NR<double>> gramBase;// Soon - to - be GSO-ed base of above base
-	vector<double> target_vector(5);
+	Matrix<FP_NR<mpfr_t>> gramBase;// Soon - to - be GSO-ed base of above base
+	NumVect<FP_NR<mpfr_t>> target (5, 3.0);
+	NumVect<FP_NR<mpfr_t>> test (5);
 	nRandBase = latticeGen(nRandBase, 5, 0);//Generate Lattice here
 	gramBase = gSO(nRandBase, gramBase); // GSO base here
 	cout << "Non-Random Lattice base of dimension 5" << endl;
@@ -189,15 +168,14 @@ int main() {
 	cout << nRandBase << endl;//Print lattice base
 	cout << endl;
 	cout << "Base orthogonized by Gram-Schmidt orthogonization" << endl;
+	cout << gramBase << endl;
 	cout << endl;
-	cout << gramBase << endl;//Print GSO-ed base
-	cout << endl;
-	cout << "LLL-reduction on base " << endl;
+ 	cout << "LLL-reduction on base " << endl;
 	cout << endl;
 	reduceLLL(nRandBase);
 	cout << nRandBase << endl;
 	cout << endl;
-	cout << gramBase[0].size() << endl;
+	test = babai (nRandBase, gramBase, target, 5);
+	cout << test << endl;
 	cout << endl;
-
 }
