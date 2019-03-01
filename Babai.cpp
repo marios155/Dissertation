@@ -375,11 +375,11 @@ int main(int argc, char** argv) {
 			target = randomSet(target);
 		}
 		else {
-		target[0] = 0.0;
-		target[1] = 1.0;
-		target[2] = 19.0;
-		target[3] = -232.0;
-		target[4] = -3.0;
+			target[0] = -1.0;
+			target[1] = -5.0;
+			target[2] = -5.0;
+			target[3] = 0.0;
+			target[4] = 1.0;
 		}
 		cout << "Lattice Base" << endl;
 		cout << endl;
@@ -389,7 +389,9 @@ int main(int argc, char** argv) {
 		cout << endl;
 		cout << target << endl;
 		cout << endl;
-		reduceLLL(base);
+		if (strcmp(argv[1], "test") != 0){
+			reduceLLL(base);
+		}
 		cout << "Lattice Base, LLL-reduced" << endl;
 		cout << endl;
 		cout << base << endl;
