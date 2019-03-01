@@ -4,7 +4,7 @@
 #include <mpfr.h>
 #include <fplll.h>
 #include <fplll/nr/nr.h>
-//#include <fpll/defs.h>
+#include "fplll/defs.h"
 #include "fplll/util.h"
 #include <fplll/wrapper.h>
 #include <fplll/gso.h>
@@ -15,15 +15,37 @@
 using namespace std;
 using namespace fplll;
 
+#ifndef TESTDATADIR
+#define TESTDATADIR ".."
+#endif
+
 //Compile using these flags: g++ -std=c++11 -O3 -march=native Babai.cpp -lfplll -lmpfr -lgmp  -o Babai
 //Run with ./Babai
+// Arguments: "test" if you wish to test specific lattice, otherwise "0" for non-random, "1" for random, and dimension of lattice
 
-/** 
-	@brief: Function that initializes a vector of given dimension with random numbers
-	@param NumVect<FP_NR<T>> vector: Vector to be randomized, called by reference
-	@return: vector, randomized by rand()
-
+/**
+   @brief Read T from `input_filename`.
+   @param X T (T is usually a ZZ_mat<ZT> or a vector<Z_NR<ZT>>
+   @param input_filename
+   @return zero if the file is correctly read, 1 otherwise.
 */
+
+template <class T> int read_file(T &X, const char *input_filename) {
+  int status = 0;
+  ifstream is;
+  is.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  try {
+    is.open(input_filename);
+    is >> X;
+    is.close();
+  }
+  catch (const ifstream::failure&) {
+    status = 1;
+    cerr << "Error by reading " << input_filename << "." << endl;
+  }
+
+  return status;
+}
 
 template <class T, class U> NumVect<FP_NR<T>> addRow (MatrixRow<Z_NR<U>> &&vector, FP_NR<T> num){
 	
@@ -37,6 +59,13 @@ template <class T, class U> NumVect<FP_NR<T>> addRow (MatrixRow<Z_NR<U>> &&vecto
 	return result;
 
 }
+
+/** 
+	@brief: Function that initializes a vector of given dimension with random numbers
+	@param NumVect<FP_NR<T>> vector: Vector to be randomized, called by reference
+	@return: vector, randomized by rand()
+
+*/
 
 template <class T> NumVect<FP_NR<T>> randomSet (NumVect<FP_NR<T>> &vector) {
 	
@@ -260,9 +289,12 @@ NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<
 void reduceLLL (ZZ_mat<mpz_t> &base) {
 	ZZ_mat<mpz_t> identity;//Identity matrix, used in the DEFAULT_GSO method
 	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix;
-	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
+	/*Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
-	cout << status << endl;
+	cout << status << endl;*/
+	int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
+	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> M (base, identity, idTrans, 0);
+	status = is_lll_reduced<Z_NR<mpz_t>, FP_NR<mpfr_t>>(M, 0.75, 0.51);
 
 }
 
@@ -311,67 +343,86 @@ NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>
 
 
 
-int main() {
+int main(int argc, char** argv) {
+	cout << endl;
 	ZZ_mat<mpz_t> base;
-	NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(5);
-	NumVect<FP_NR<mpfr_t>> target(5);
-	NumVect<FP_NR<mpfr_t>> test(5);
-	target.fill(0.0);
-	test.fill(0.0);
-	base.resize(5, 5);
-	base.fill(0);
-	base = latticeGen(base, 5, 1);
-	/*base[0][0] = 2;
-	base[0][1] = 1;
-	base[0][2] = 1;
-	base[0][3] = -1;
-	base[0][4] = -1;
-	base[1][0] = -1;
-	base[1][1] = -3;
+	int status = 0;
+	cout << argv[1] << endl;
+	if (argc == 3) {
+		int dim = atoi(argv[2]);
+		NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(dim);
+		NumVect<FP_NR<mpfr_t>> target(dim);
+		NumVect<FP_NR<mpfr_t>> test(dim);
+		target.fill(0.0);
+		test.fill(0.0);
+		if (strcmp(argv[1], "test") == 0) {
+			status = read_file(base, TESTDATADIR "/tests/lattice55.txt");
+			cout << status << endl;
+		}
+		else {
+			if (strcmp(argv[1], "0") == 0){
+				base = latticeGen(base, dim, 0);
+			}
+			else {
+				base = latticeGen(base, dim, 1);
+			}
+		}
+		target[0] = 2.0;
+		target[1] = 1.0;
+		target[2] = 0.0;
+		target[3] = 1.0;
+		target[4] = -10.0;
+		cout << "Lattice Base" << endl;
+		cout << endl;
+		cout << base << endl;
+		cout << endl;
+		cout << "Target Vector" << endl;
+		cout << endl;
+		cout << target << endl;
+		cout << endl;
+		reduceLLL(base);
+		cout << "Lattice Base, LLL-reduced" << endl;
+		cout << endl;
+		cout << base << endl;
+		cout << endl;
+		gramBase = gSO (base, gramBase);
+		cout << "Gram-Schmidt Lattice Base" << endl;
+		cout << endl;
+		cout << gramBase << endl;
+		cout << endl;
+		test = babai(base, gramBase, target, 5);
+		cout << "Babai's output:" << endl;
+		cout << endl;
+		cout << test << endl;
+		cout << endl;
+	}
+	else {
+		cerr << "Expected 3 arguments,"<< " " << argc << " " << "provided" << endl;
+	}
+	//base = latticeGen(base, 5, 0);
+	/*base[0][0] = 1;
+	base[0][1] = 0;
+	base[0][2] = 0;
+	base[0][3] = 0;
+	base[0][4] = 1;
+	base[1][0] = 1;
+	base[1][1] = -1;
 	base[1][2] = 0;
-	base[1][3] = -3;
-	base[1][4] = 0;
-	base[2][0] = -2;
-	base[2][1] = 0;
-	base[2][2] = -1;
-	base[2][3] = 0;
-	base[2][4] = -6;
-	base[3][0] = 2;
-	base[3][1] = 4;
-	base[3][2] = -7;
-	base[3][3] = -2;
-	base[3][4] = 0;
-	base[4][0] = -5;
-	base[4][1] = 5;
-	base[4][2] = 5;
-	base[4][3] = -2;
-	base[4][4] = 2;*/
-	target[0] = 0.0;
-	target[1] = 3.0;
-	target[2] = 1.0;
-	target[3] = 4.0;
-	target[4] = 1.0;
-	cout << "Lattice Base" << endl;
-	cout << endl;
-	cout << base << endl;
-	cout << endl;
-	cout << "Target Vector" << endl;
-	cout << endl;
-	cout << target << endl;
-	cout << endl;
-	reduceLLL(base);
-	cout << "Lattice Base, LLL-reduced" << endl;
-	cout << endl;
-	cout << base << endl;
-	cout << endl;
-	gramBase = gSO (base, gramBase);
-	cout << "Gram-Schmidt Lattice Base" << endl;
-	cout << endl;
-	cout << gramBase << endl;
-	cout << endl;
-	test = babai(base, gramBase, target, 5);
-	cout << "Babai's output:" << endl;
-	cout << endl;
-	cout << test << endl;
-	cout << endl;
+	base[1][3] = 0;
+	base[1][4] = -1;
+	base[2][0] = 1;
+	base[2][1] = 2;
+	base[2][2] = -4;
+	base[2][3] = -1;
+	base[2][4] = -1;
+	base[3][0] = -1;
+	base[3][1] = -3;
+	base[3][2] = -3;
+	base[3][3] = -3;
+	base[3][4] = 2;
+	base[4][0] = 10;
+	base[4][1] = 20;
+	base[4][2] = 33;
+	base[4][3] = -66;
+	base[4][4] = -9;*/
 }
