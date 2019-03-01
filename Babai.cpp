@@ -3,15 +3,14 @@
 #include <gmp.h>
 #include <mpfr.h>
 #include <fplll.h>
-#include <fplll/nr/nr.h>
 #include "fplll/defs.h"
 #include "fplll/util.h"
+#include <fplll/nr/nr.h>
+#include <fplll/nr/numvect.h>
 #include <fplll/wrapper.h>
 #include <fplll/gso.h>
 #include<fplll/gso_gram.h>
 #include <fplll/gso_interface.h>
-#include <math.h>
-#include <fplll/nr/numvect.h>
 using namespace std;
 using namespace fplll;
 
@@ -42,6 +41,7 @@ template <class T> int read_file(T &X, const char *input_filename) {
   catch (const ifstream::failure&) {
     status = 1;
     cerr << "Error by reading " << input_filename << "." << endl;
+    cout << is.rdstate() << endl;
   }
 
   return status;
@@ -249,7 +249,7 @@ ZZ_mat<mpz_t> latticeGen(ZZ_mat<mpz_t> &base, int dim, bool isRandom) {
 
 */
 
-NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gramBase) {
+NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR<mpfr_t>>> & gramBase) {
 	ZZ_mat<mpz_t> identity;//Identity matrix of integers, used in LLL
 	ZZ_mat<mpz_t> idTrans;//Transposed version of identity
 	int dimension = base.get_cols();//Retrieve dimension of lattice
@@ -286,7 +286,7 @@ NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<
 
 */
 
-void reduceLLL (ZZ_mat<mpz_t> &base) {
+void reduceLLL (ZZ_mat<mpz_t> & base) {
 	ZZ_mat<mpz_t> identity;//Identity matrix, used in the DEFAULT_GSO method
 	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix;
 	/*Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
@@ -307,7 +307,7 @@ void reduceLLL (ZZ_mat<mpz_t> &base) {
 	@return: toReturn, NumVect<FP_NR<mpfr_t>> type, Nearest Plane vector
 */
 
-NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gramBase, NumVect<FP_NR<mpfr_t>> target_vector, int dim) {
+NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR<mpfr_t>>> & gramBase, NumVect<FP_NR<mpfr_t>> target_vector, int dim) {
 	// See pseudocode of NPA presented in "The (R)LWE problem on cryptography" master thesis by Michael Anastasiadis, pp. 29-30
 	//link here: https://ikee.lib.auth.gr/record/300429/?ln=el
 	NumVect<NumVect<FP_NR<mpfr_t>>> w(dim);
@@ -321,20 +321,24 @@ NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>
 	FP_NR<mpfr_t> l_unRND = 0.0;
 	NumVect<FP_NR<mpfr_t>> gSOMult(dim);
 	w[dim - 1] = target_vector;
-	for (int i = dim - 1; i > 0; i--) {
+	for (int i = dim - 1; i >= 0; i--) {
 		//l[i] =  <w[i], b[i]*> / <b[i]*, b[i]*>
 		l1 = dotProduct(w[i], gramBase[i], w[i].size(), gramBase[i].size());
 		l2 = dotProduct(gramBase[i], gramBase[i], gramBase[i].size(),gramBase[i].size());
 		l = l1 / l2;
 		l_unRND = l;// Unrounded l[i]
-		l.rnd(l + 0.6);// round l[i], function is void, so affects object itself, hence the existence of l_unRND[i]
+		l.rnd(l);// round l[i], function is void, so affects object itself, hence the existence of l_unRND[i]
 		u[i] = mult(base[i], l);// y[i] = round(l[i]) * b[i];
+		cout << u[i] << endl;
 		toReturn.add(u[i]);
-		gSOMult = multRow(gramBase[i], (l_unRND - l)); // this equals (l[i] - round(l[i]) * b[i]*)
+		gSOMult = multRow(gramBase[i], (l_unRND - l)); // this equals (l[i] - round(l[i]) ) * b*[i]
+		if (i > 0) {
 		w[i - 1] = w[i];
 		w[i - 1].sub (gSOMult);
 		w[i - 1].sub(u[i]);
-		//Above four operations mean w[i -1] = w[i] - (l[i] - round(l[i]) * b[i]* - l[i]b[i]
+		}
+		
+		//Above four operations mean w[i -1] = w[i] - (l[i] - round(l[i]) * b*[i]) - l[i]b[i]
 
 	}
 	return toReturn;
@@ -347,17 +351,16 @@ int main(int argc, char** argv) {
 	cout << endl;
 	ZZ_mat<mpz_t> base;
 	int status = 0;
-	cout << argv[1] << endl;
 	if (argc == 3) {
 		int dim = atoi(argv[2]);
 		NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(dim);
 		NumVect<FP_NR<mpfr_t>> target(dim);
 		NumVect<FP_NR<mpfr_t>> test(dim);
+		base.resize(dim, dim);
 		target.fill(0.0);
 		test.fill(0.0);
 		if (strcmp(argv[1], "test") == 0) {
-			status = read_file(base, TESTDATADIR "/tests/lattice55.txt");
-			cout << status << endl;
+			status = read_file(base, "lattice");
 		}
 		else {
 			if (strcmp(argv[1], "0") == 0){
@@ -369,9 +372,9 @@ int main(int argc, char** argv) {
 		}
 		target[0] = 2.0;
 		target[1] = 1.0;
-		target[2] = 0.0;
-		target[3] = 1.0;
-		target[4] = -10.0;
+		target[2] = 3.0;
+		target[3] = 0.0;
+		target[4] = 1.0;
 		cout << "Lattice Base" << endl;
 		cout << endl;
 		cout << base << endl;
@@ -380,7 +383,9 @@ int main(int argc, char** argv) {
 		cout << endl;
 		cout << target << endl;
 		cout << endl;
-		reduceLLL(base);
+		if (strcmp(argv[1], "test") != 0) {
+			reduceLLL(base);
+		}
 		cout << "Lattice Base, LLL-reduced" << endl;
 		cout << endl;
 		cout << base << endl;
@@ -399,30 +404,4 @@ int main(int argc, char** argv) {
 	else {
 		cerr << "Expected 3 arguments,"<< " " << argc << " " << "provided" << endl;
 	}
-	//base = latticeGen(base, 5, 0);
-	/*base[0][0] = 1;
-	base[0][1] = 0;
-	base[0][2] = 0;
-	base[0][3] = 0;
-	base[0][4] = 1;
-	base[1][0] = 1;
-	base[1][1] = -1;
-	base[1][2] = 0;
-	base[1][3] = 0;
-	base[1][4] = -1;
-	base[2][0] = 1;
-	base[2][1] = 2;
-	base[2][2] = -4;
-	base[2][3] = -1;
-	base[2][4] = -1;
-	base[3][0] = -1;
-	base[3][1] = -3;
-	base[3][2] = -3;
-	base[3][3] = -3;
-	base[3][4] = 2;
-	base[4][0] = 10;
-	base[4][1] = 20;
-	base[4][2] = 33;
-	base[4][3] = -66;
-	base[4][4] = -9;*/
 }
