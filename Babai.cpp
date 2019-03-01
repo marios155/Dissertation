@@ -18,9 +18,11 @@ using namespace fplll;
 #define TESTDATADIR ".."
 #endif
 
-//Compile using these flags: g++ -std=c++11 -O3 -march=native Babai.cpp -lfplll -lmpfr -lgmp  -o Babai
-//Run with ./Babai
-// Arguments: "test" if you wish to test specific lattice, otherwise "0" for non-random, "1" for random, and dimension of lattice
+// Compile using these flags: g++ -std=c++11 -O3 -march=native Babai.cpp -lfplll -lmpfr -lgmp  -o Babai
+// Run with ./Babai
+// Argument 1: "test" if you wish to test specific lattice, otherwise "0" for non-random, "1" for random
+// Argument 2: dimension of lattice
+// Argument 3: "0" for non-random vector (change values in lines 378-382), "1" for random, generated here
 
 /**
    @brief Read T from `input_filename`.
@@ -71,7 +73,7 @@ template <class T> NumVect<FP_NR<T>> randomSet (NumVect<FP_NR<T>> &vector) {
 	
 	for (int i = 0; i < vector.size(); i++) {
 
-		vector[i] = rand();// Instantiate each element by a random number, generated here
+		vector[i] = rand() % 100;// Instantiate each element by a random number, generated here
 
 	}
 	return vector;
@@ -289,12 +291,12 @@ NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR
 void reduceLLL (ZZ_mat<mpz_t> & base) {
 	ZZ_mat<mpz_t> identity;//Identity matrix, used in the DEFAULT_GSO method
 	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix;
-	/*Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
+	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
-	cout << status << endl;*/
-	int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
+	cout << status << endl;
+	/*int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
 	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> M (base, identity, idTrans, 0);
-	status = is_lll_reduced<Z_NR<mpz_t>, FP_NR<mpfr_t>>(M, 0.75, 0.51);
+	status = is_lll_reduced<Z_NR<mpz_t>, FP_NR<mpfr_t>>(M, 0.75, 0.51);*/
 
 }
 
@@ -329,7 +331,6 @@ NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR<mpfr_t
 		l_unRND = l;// Unrounded l[i]
 		l.rnd(l);// round l[i], function is void, so affects object itself, hence the existence of l_unRND[i]
 		u[i] = mult(base[i], l);// y[i] = round(l[i]) * b[i];
-		cout << u[i] << endl;
 		toReturn.add(u[i]);
 		gSOMult = multRow(gramBase[i], (l_unRND - l)); // this equals (l[i] - round(l[i]) ) * b*[i]
 		if (i > 0) {
@@ -351,7 +352,7 @@ int main(int argc, char** argv) {
 	cout << endl;
 	ZZ_mat<mpz_t> base;
 	int status = 0;
-	if (argc == 3) {
+	if (argc == 4) {
 		int dim = atoi(argv[2]);
 		NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(dim);
 		NumVect<FP_NR<mpfr_t>> target(dim);
@@ -370,11 +371,16 @@ int main(int argc, char** argv) {
 				base = latticeGen(base, dim, 1);
 			}
 		}
-		target[0] = 2.0;
+		if (strcmp(argv[3], "1") ==0) {
+			target = randomSet(target);
+		}
+		else {
+		target[0] = 0.0;
 		target[1] = 1.0;
-		target[2] = 3.0;
-		target[3] = 0.0;
-		target[4] = 1.0;
+		target[2] = 19.0;
+		target[3] = -232.0;
+		target[4] = -3.0;
+		}
 		cout << "Lattice Base" << endl;
 		cout << endl;
 		cout << base << endl;
@@ -383,9 +389,7 @@ int main(int argc, char** argv) {
 		cout << endl;
 		cout << target << endl;
 		cout << endl;
-		if (strcmp(argv[1], "test") != 0) {
-			reduceLLL(base);
-		}
+		reduceLLL(base);
 		cout << "Lattice Base, LLL-reduced" << endl;
 		cout << endl;
 		cout << base << endl;
@@ -402,6 +406,6 @@ int main(int argc, char** argv) {
 		cout << endl;
 	}
 	else {
-		cerr << "Expected 3 arguments,"<< " " << argc << " " << "provided" << endl;
+		cerr << "Expected 4 arguments,"<< " " << argc << " " << "provided" << endl;
 	}
 }
