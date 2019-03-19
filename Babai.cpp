@@ -389,9 +389,7 @@ int main(int argc, char** argv) {
 		cout << endl;
 		cout << target << endl;
 		cout << endl;
-		if (strcmp(argv[1], "test") != 0){
-			reduceLLL(base);
-		}
+		reduceLLL(base);
 		cout << "Lattice Base, LLL-reduced" << endl;
 		cout << endl;
 		cout << base << endl;
