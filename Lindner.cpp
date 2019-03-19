@@ -319,14 +319,11 @@ NumVect<NumVect<FP_NR<mpfr_t>>> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP
 	FP_NR<mpfr_t> c = 0.0;
 	FP_NR<mpfr_t> c_unRND = 0.0;
 	FP_NR<mpfr_t> l = 0.0;
+	int tempSize = 0;
 	NumVect<NumVect<FP_NR<mpfr_t>>> toReturn;
 	NumVect<NumVect<FP_NR<mpfr_t>>> toCompute;
-	toReturn.resize(dimension);
-	toCompute.resize(dimension);
-	for (int k = 0; k < dimension; k++) {
-		toReturn[k].gen_zero(dimension);
-		toCompute[k].gen_zero(dimension);
-	}
+	toReturn.resize(1);
+	toReturn[0].gen_zero(dimension);
 	NumVect<FP_NR<mpfr_t>> temp;
 	temp.resize(dimension);
 	temp.fill(0.0);
@@ -334,28 +331,39 @@ NumVect<NumVect<FP_NR<mpfr_t>>> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP
 	temp1.resize(dimension);
 	temp1.fill(0.0);
 	temp = target;
+	tempSize = toReturn.size();
 	for (int i = dimension -1; i >= 0; i --) {
-		temp = target;
-		temp.sub(toReturn[i]);
-		c1 = dotProduct(temp, gramBase[i], dimension, dimension);
-		c2 = dotProduct(gramBase[i], gramBase[i], dimension, dimension);
-		c_unRND = c1 / c2;
-		c.rnd(c_unRND);
-		for (int j = 1; j <= buffer[i]; j++) {
-			if (j % 2 == 0.0) {
-				l.floor(c);
+		toCompute.clear();
+		toCompute.resize(tempSize);
+		for (int u = 0; u < tempSize; u++) {
+			toCompute[u].gen_zero(dimension);
+		}
+		for (auto &element : toReturn) {
+			cout << element << endl;
+			temp = target;
+			temp.sub(element);
+			c1 = dotProduct(temp, gramBase[i], dimension, dimension);
+			c2 = dotProduct(gramBase[i], gramBase[i], dimension, dimension);
+			c_unRND = c1 / c2;
+			c.rnd(c_unRND);
+			for (int k = 1; k <= buffer[i]; k++) {
+				if (k % 2 == 0.0) {
+					l.floor(c);
 
-			}
-			else {
-				l.floor(c + 1.0);
-			}
-			temp1 = mult(base[i], l);
-			temp1.add(toReturn[i]);
-			toCompute[i] = temp1;
-			temp1.fill(0.0); 
+				}
+				else {
+					l.floor(c + 1.0);
+				}
+				temp1 = mult(base[i], l);
+				temp1.add(element);
+				toCompute.push_back(temp1);
+				temp1.fill(0.0); 
+		}
+		toReturn.resize(toCompute.size());
+		toReturn = toCompute;
+		tempSize = toCompute.size();
 		}
 	}
-	toReturn = toCompute;
 	return toReturn;
 
 } 
@@ -376,7 +384,6 @@ int main(int argc, char** argv) {
 		base.resize(dim, dim);
 		target.fill(0.0);
 		res.resize(dim);
-		res.fill(0.0);
 		if (strcmp(argv[1], "test") == 0) {
 			status = read_file(base, "lattice");
 		}
@@ -398,26 +405,24 @@ int main(int argc, char** argv) {
 			target[3] = 1.0;
 			target[4] = 0.0;
 		}
-		cout << "Lattice Base" << endl;
-		cout << endl;
-		cout << base << endl;
-		cout << endl;
-		cout << "Target Vector" << endl;
-		cout << endl;
-		cout << target << endl;
-		cout << endl;
-		if (strcmp(argv[1], "test") != 0){
-			reduceLLL(base);
-		}
-		cout << "Lattice Base, LLL-reduced" << endl;
-		cout << endl;
-		cout << base << endl;
-		cout << endl;
+		//cout << "Lattice Base" << endl;
+		//cout << endl;
+		//cout << base << endl;
+		//cout << endl;
+		//cout << "Target Vector" << endl;
+		//cout << endl;
+		//cout << target << endl;
+		//cout << endl;
+		reduceLLL(base);
+		//cout << "Lattice Base, LLL-reduced" << endl;
+		//cout << endl;
+		//cout << base << endl;
+		//cout << endl;
 		gramBase = gSO (base, gramBase);
-		cout << "Gram-Schmidt Lattice Base" << endl;
-		cout << endl;
-		cout << gramBase << endl;
-		cout << endl;
+		//cout << "Gram-Schmidt Lattice Base" << endl;
+		//cout << endl;
+		//cout << gramBase << endl;
+		//cout << endl;
 		res = Lindner(base, gramBase, target, buffer);
 		cout << "Lindner's output:" << endl;
 		cout << endl;
