@@ -22,7 +22,7 @@ using namespace fplll;
 // Run with ./Babai
 // Argument 1: "test" if you wish to test specific lattice, otherwise "0" for non-random, "1" for random
 // Argument 2: dimension of lattice
-// Argument 3: "0" for non-random vector (change values in lines 378-382), "1" for random, generated here
+// Argument 3: "test" to test file from vector, "0" for non-random vector, "1" for random, generated here
 
 /**
    @brief Read T from `input_filename`.
@@ -94,7 +94,7 @@ template <class T, class U> NumVect<FP_NR<T>> mult (MatrixRow<Z_NR<U>> &&vector,
 	for (int i = 0; i < vector.size(); i++) {
 
 		result[i].mul(num, vector[i].get_ld(), MPFR_RNDN);// This is FP_NR class's function to implement multiplication,
-														 // allowing us to avoid confusing mpfr ang mpz functions in case
+														 // allowing us to avoid confusing mpfr and mpz functions in case
 														 // of usage of MPFR or GMP Libraries.
 	}
 	return result;

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include <time.h>
 #include <gmp.h>
 #include <mpfr.h>
@@ -293,7 +294,7 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix;
 	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
-	cout << status << endl;
+	//cout << status << endl;
 	/*int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
 	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> M (base, identity, idTrans, 0);
 	status = is_lll_reduced<Z_NR<mpz_t>, FP_NR<mpfr_t>>(M, 0.75, 0.51);*/
@@ -306,9 +307,58 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	@param ZZ_mat<mpz_t> base: Base of integer lattice, reduced either by LLL or BKZ (choice to be implemented)
 	@param Matrix<FP_NR<mpfr_t>> gramBase: GSO-ed Lattice base of above lattice.
 	@param NumVect<FP_NR<mpfr_t>> target_vector: Target vector for which NP vector will be calculated
+	@param NumVect<Z_NR<mpz_t>> buffer: Initial distance vector of n elements, where n is base dimension. Usually filled with same integer number. 
 	@return: toReturn, NumVect<NumVect<FP_NR<mpfr_t>>> type, Nearest Plane vectors
 */
 
+NumVect<NumVect<FP_NR<mpfr_t>>> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gramBase, NumVect<FP_NR<mpfr_t>> target, NumVect<int> &buffer) {
+
+	int dimension = base.get_cols();
+	FP_NR<mpfr_t> c1 = 0.0;
+	FP_NR<mpfr_t> c2 = 0.0;
+	FP_NR<mpfr_t> c = 0.0;
+	FP_NR<mpfr_t> c_unRND = 0.0;
+	FP_NR<mpfr_t> l = 0.0;
+	NumVect<NumVect<FP_NR<mpfr_t>>> toReturn;
+	NumVect<NumVect<FP_NR<mpfr_t>>> toCompute;
+	toReturn.resize(dimension);
+	toCompute.resize(dimension);
+	for (int k = 0; k < dimension; k++) {
+		toReturn[k].gen_zero(dimension);
+		toCompute[k].gen_zero(dimension);
+	}
+	NumVect<FP_NR<mpfr_t>> temp;
+	temp.resize(dimension);
+	temp.fill(0.0);
+	NumVect<FP_NR<mpfr_t>> temp1;
+	temp1.resize(dimension);
+	temp1.fill(0.0);
+	temp = target;
+	for (int i = dimension -1; i >= 0; i --) {
+		temp = target;
+		temp.sub(toReturn[i]);
+		c1 = dotProduct(temp, gramBase[i], dimension, dimension);
+		c2 = dotProduct(gramBase[i], gramBase[i], dimension, dimension);
+		c_unRND = c1 / c2;
+		c.rnd(c_unRND);
+		for (int j = 1; j <= buffer[i]; j++) {
+			if (j % 2 == 0.0) {
+				l.floor(c);
+
+			}
+			else {
+				l.floor(c + 1.0);
+			}
+			temp1 = mult(base[i], l);
+			temp1.add(toReturn[i]);
+			toCompute[i] = temp1;
+			temp1.fill(0.0); 
+		}
+	}
+	toReturn = toCompute;
+	return toReturn;
+
+} 
 
 
 
@@ -320,10 +370,13 @@ int main(int argc, char** argv) {
 		int dim = atoi(argv[2]);
 		NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(dim);
 		NumVect<FP_NR<mpfr_t>> target(dim);
-		NumVect<FP_NR<mpfr_t>> test(dim);
+		NumVect<int> buffer(dim);
+		NumVect<NumVect<FP_NR<mpfr_t>>> res;
+		buffer.fill(2);
 		base.resize(dim, dim);
 		target.fill(0.0);
-		test.fill(0.0);
+		res.resize(dim);
+		res.fill(0.0);
 		if (strcmp(argv[1], "test") == 0) {
 			status = read_file(base, "lattice");
 		}
@@ -339,10 +392,10 @@ int main(int argc, char** argv) {
 			target = randomSet(target);
 		}
 		else {
-			target[0] = -4.0;
-			target[1] = -1.0;
-			target[2] = 1.0;
-			target[3] = 0.0;
+			target[0] = 1.0;
+			target[1] = 0.0;
+			target[2] = 2.0;
+			target[3] = 1.0;
 			target[4] = 0.0;
 		}
 		cout << "Lattice Base" << endl;
@@ -365,10 +418,10 @@ int main(int argc, char** argv) {
 		cout << endl;
 		cout << gramBase << endl;
 		cout << endl;
-		test = babai(base, gramBase, target, 5);
-		cout << "Babai's output:" << endl;
+		res = Lindner(base, gramBase, target, buffer);
+		cout << "Lindner's output:" << endl;
 		cout << endl;
-		cout << test << endl;
+		cout << res << endl;
 		cout << endl;
 	}
 	else {
