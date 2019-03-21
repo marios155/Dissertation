@@ -289,11 +289,20 @@ NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR
 */
 
 void reduceLLL (ZZ_mat<mpz_t> & base) {
+	int dim = base.get_cols();
 	ZZ_mat<mpz_t> identity;//Identity matrix, used in the DEFAULT_GSO method
 	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix;
+	ZZ_mat <mpz_t> temp (2, dim);
+	temp.fill(0);
 	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
 	cout << status << endl;
+	temp[0].add(base[dim - 2]);
+	temp[1].add(base[dim - 1]);
+	base[dim - 2].fill(0);
+	base[dim - 2].add(temp[1]);
+	base[dim - 1].fill(0);
+	base[dim -1].add (temp[0]);
 	/*int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
 	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> M (base, identity, idTrans, 0);
 	status = is_lll_reduced<Z_NR<mpz_t>, FP_NR<mpfr_t>>(M, 0.75, 0.51);*/
@@ -375,11 +384,11 @@ int main(int argc, char** argv) {
 			target = randomSet(target);
 		}
 		else {
-			target[0] = -1.0;
-			target[1] = -5.0;
-			target[2] = -5.0;
-			target[3] = 0.0;
-			target[4] = 1.0;
+			target[0] = 1.0;
+			target[1] = 0.0;
+			target[2] = 2.0;
+			target[3] = 1.0;
+			target[4] = 0.0;
 		}
 		cout << "Lattice Base" << endl;
 		cout << endl;
