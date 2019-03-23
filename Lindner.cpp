@@ -70,14 +70,17 @@ template <class T, class U> NumVect<FP_NR<T>> addRow (MatrixRow<Z_NR<U>> &&vecto
 
 */
 
-template <class T> NumVect<FP_NR<T>> randomSet (NumVect<FP_NR<T>> &vector) {
+template <class T> ZZ_mat<T> randomSet (ZZ_mat<T> &target) {
 	
-	for (int i = 0; i < vector.size(); i++) {
+	for (int i = 0; i < target.get_cols(); i++) {
+		for (int j = 0; j < target.get_rows(); j++) {
+			
+			target[i][j] = rand() % 100;// Instantiate each element by a random number, generated here
 
-		vector[i] = rand() % 100;// Instantiate each element by a random number, generated here
-
+		}
+		
 	}
-	return vector;
+	return target;
 
 }
 
@@ -102,6 +105,21 @@ template <class T, class U> NumVect<FP_NR<T>> mult (MatrixRow<Z_NR<U>> &&vector,
 
 }
 
+template <class T> FP_NR<T> dotProduct (Matrix<FP_NR<T>> matrix, NumVect<FP_NR<T>> vector) {
+	FP_NR<T> res = 0.0;
+	for (int i = 0; i < matrix.get_cols(); i++) {
+		res = res + vector[i] * matrix[0][i];
+	}
+	return res;
+}
+
+template <class T, class U> FP_NR<T> dotProduct (ZZ_mat<U> matrix, NumVect<FP_NR<T>> vector) {
+	FP_NR<T> res = 0.0;
+	for (int i = 0; i < matrix.get_cols(); i++) {
+		res = res + vector[i].get_d() * matrix[0][i].get_d();
+	}
+	return res;
+}
 
 
 /** 
@@ -119,6 +137,19 @@ template <class T> NumVect<FP_NR<T>> multRow (NumVect<FP_NR<T>> &row, FP_NR<T> n
 		toReturn[i].mul(row[i], num, MPFR_RNDN);// See comments of mult() function above
 	}
 	return toReturn;
+}
+
+template <class T, class U> ZZ_mat<U> mul (MatrixRow<Z_NR<U>> &&vector, FP_NR<T> num){
+	
+	ZZ_mat<U> result(1, vector.size());
+	for (int i = 0; i < vector.size(); i++) {
+
+		result[0][i].mul_si(vector[i], num.get_d());// This is FP_NR class's function to implement multiplication,
+														 // allowing us to avoid confusing mpfr ang mpz functions in case
+														 // of usage of MPFR or GMP Libraries.
+	}
+	return result;
+
 }
 
 template <class T> NumVect<FP_NR<T>> addRow (MatrixRow<FP_NR<T>> &&row, FP_NR<T> num) {
@@ -290,10 +321,19 @@ NumVect<NumVect<FP_NR<mpfr_t>>> gSO (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR
 */
 
 void reduceLLL (ZZ_mat<mpz_t> & base) {
+	int dim = base.get_cols();
 	ZZ_mat<mpz_t> identity;//Identity matrix, used in the DEFAULT_GSO method
 	ZZ_mat<mpz_t> idTrans;//Transposed ID matrix;
+	ZZ_mat<mpz_t> temp (2, dim);
+	temp.fill(0);
 	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
+	temp[0].add(base[dim - 2]);
+	temp[1].add(base[dim - 1]);
+	base[dim - 2].fill(0);
+	base[dim - 2].add(temp[1]);
+	base[dim - 1].fill(0);
+	base[dim -1].add (temp[0]);
 	//cout << status << endl;
 	/*int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
 	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> M (base, identity, idTrans, 0);
@@ -311,62 +351,82 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	@return: toReturn, NumVect<NumVect<FP_NR<mpfr_t>>> type, Nearest Plane vectors
 */
 
-NumVect<NumVect<FP_NR<mpfr_t>>> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gramBase, NumVect<FP_NR<mpfr_t>> target, NumVect<int> &buffer) {
-
+ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gramBase, ZZ_mat<mpz_t> target, NumVect<int> buffer) {
+	ZZ_mat<mpz_t> toReturn;
+	ZZ_mat<mpz_t> toCompute;
+	Matrix<FP_NR<mpfr_t>> buff;
+	ZZ_mat<mpz_t> temp;
+	ZZ_mat<mpz_t> temp1;
 	int dimension = base.get_cols();
 	FP_NR<mpfr_t> c1 = 0.0;
 	FP_NR<mpfr_t> c2 = 0.0;
 	FP_NR<mpfr_t> c = 0.0;
 	FP_NR<mpfr_t> c_unRND = 0.0;
 	FP_NR<mpfr_t> l = 0.0;
-	int tempSize = 0;
-	NumVect<NumVect<FP_NR<mpfr_t>>> toReturn;
-	NumVect<NumVect<FP_NR<mpfr_t>>> toCompute;
-	toReturn.resize(1);
-	toReturn[0].gen_zero(dimension);
-	NumVect<FP_NR<mpfr_t>> temp;
-	temp.resize(dimension);
-	temp.fill(0.0);
-	NumVect<FP_NR<mpfr_t>> temp1;
-	temp1.resize(dimension);
-	temp1.fill(0.0);
-	temp = target;
-	tempSize = toReturn.size();
-	for (int i = dimension -1; i >= 0; i --) {
-		toCompute.clear();
-		toCompute.resize(tempSize);
-		for (int u = 0; u < tempSize; u++) {
-			toCompute[u].gen_zero(dimension);
-		}
-		for (auto &element : toReturn) {
-			cout << element << endl;
-			temp = target;
-			temp.sub(element);
-			c1 = dotProduct(temp, gramBase[i], dimension, dimension);
+	int count = 0;
+	toReturn.resize(1, dimension);
+	toReturn.fill(0);
+	toCompute.resize(1, dimension);
+	temp.resize(target.get_rows(), target.get_cols());
+	temp.fill(0);
+	for (int i = dimension - 1; i >= 0; i--) {
+		toCompute.resize(toReturn.get_rows(), dimension);
+		toCompute.fill(0);
+		cout << endl;
+		cout << i << endl;
+		cout << endl;
+		for (int j = 0; j < toReturn.get_rows(); j++) {
+			count++;
+			cout << endl;
+			cout << j << endl;
+			cout << endl;
+			temp[0].add(target[0]);
+			temp[0].sub(toReturn[j]);
+			c1 = dotProduct(temp, gramBase[i]);
+			cout << "Pass 386" << endl;
 			c2 = dotProduct(gramBase[i], gramBase[i], dimension, dimension);
+			cout << "Pass 388" << endl;
 			c_unRND = c1 / c2;
-			c.rnd(c_unRND);
+			cout << "Pass 390" << endl;
+			temp.fill(0);
+			cout << "Pass 392" << endl;
 			for (int k = 1; k <= buffer[i]; k++) {
-				if (k % 2 == 0.0) {
-					l.floor(c);
-
+				if (k % 2 == 0){
+					l.floor(c_unRND);
+					cout << "Pass 396" << endl;
 				}
-				else {
-					l.floor(c + 1.0);
+				else{
+					l.floor(c_unRND + 1.0);
+					cout << "Pass 400" << endl;
 				}
-				temp1 = mult(base[i], l);
-				temp1.add(element);
-				toCompute.push_back(temp1);
-				temp1.fill(0.0); 
+				temp1 = mul (base[i], l);
+				cout << "Pass 403" << endl;
+				temp1[0].add(toReturn[j]);
+				cout << "Pass 405" << endl;
+				toCompute[j].add(temp1[0]);
+				cout << "Pass 407" << endl;
+				temp1.fill(0);
+				cout << "Pass 409" << endl;
+			}	
 		}
-		toReturn.resize(toCompute.size());
-		toReturn = toCompute;
-		tempSize = toCompute.size();
+		toReturn.resize(toReturn.get_rows() + count, dimension);
+		cout << "Pass 413" << endl;
+		cout << endl;
+		cout << count << endl;
+		cout << endl;
+		for (int u = count; u < toReturn.get_rows(); u++) {
+			toReturn[u].fill(0);
+			cout << endl;
+			cout << u - count << endl;
+			cout << endl;
+			toReturn[u].add(toCompute[u - count]);
 		}
+		cout << "Pass 418" << endl;
+		count = 0;
+		cout << "Pass 423" << endl;
 	}
-	return toReturn;
 
-} 
+}
 
 
 
@@ -377,13 +437,13 @@ int main(int argc, char** argv) {
 	if (argc == 4) {
 		int dim = atoi(argv[2]);
 		NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(dim);
-		NumVect<FP_NR<mpfr_t>> target(dim);
+		ZZ_mat<mpz_t> target(1, dim);
 		NumVect<int> buffer(dim);
-		NumVect<NumVect<FP_NR<mpfr_t>>> res;
+		ZZ_mat<mpz_t> res;
 		buffer.fill(2);
 		base.resize(dim, dim);
 		target.fill(0.0);
-		res.resize(dim);
+		res.resize(dim, dim);
 		if (strcmp(argv[1], "test") == 0) {
 			status = read_file(base, "lattice");
 		}
@@ -399,25 +459,25 @@ int main(int argc, char** argv) {
 			target = randomSet(target);
 		}
 		else {
-			target[0] = 1.0;
-			target[1] = 0.0;
-			target[2] = 2.0;
-			target[3] = 1.0;
-			target[4] = 0.0;
+			target[0][0] = 1;
+			target[0][1] = 0;
+			target[0][2] = 2;
+			target[0][3] = 1;
+			target[0][4] = 0;
 		}
-		//cout << "Lattice Base" << endl;
-		//cout << endl;
-		//cout << base << endl;
-		//cout << endl;
+		cout << "Lattice Base" << endl;
+		cout << endl;
+		cout << base << endl;
+		cout << endl;
 		//cout << "Target Vector" << endl;
 		//cout << endl;
 		//cout << target << endl;
 		//cout << endl;
 		reduceLLL(base);
-		//cout << "Lattice Base, LLL-reduced" << endl;
-		//cout << endl;
-		//cout << base << endl;
-		//cout << endl;
+		cout << "Lattice Base, LLL-reduced" << endl;
+		cout << endl;
+		cout << base << endl;
+		cout << endl;
 		gramBase = gSO (base, gramBase);
 		//cout << "Gram-Schmidt Lattice Base" << endl;
 		//cout << endl;
