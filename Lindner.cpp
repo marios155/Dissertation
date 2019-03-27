@@ -19,8 +19,8 @@ using namespace fplll;
 #define TESTDATADIR ".."
 #endif
 
-// Compile using these flags: g++ -std=c++11 -O3 -march=native Babai.cpp -lfplll -lmpfr -lgmp  -o Babai
-// Run with ./Babai
+// Compile using these flags: g++ -std=c++11 -O3 -march=native Lindner.cpp -lfplll -lmpfr -lgmp  -o Lindner
+// Run with ./
 // Argument 1: "test" if you wish to test specific lattice, otherwise "0" for non-random, "1" for random
 // Argument 2: dimension of lattice
 // Argument 3: "0" for non-random vector (change values in lines 378-382), "1" for random, generated here
@@ -372,60 +372,38 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 	for (int i = dimension - 1; i >= 0; i--) {
 		toCompute.resize(toReturn.get_rows(), dimension);
 		toCompute.fill(0);
-		cout << endl;
-		cout << i << endl;
-		cout << endl;
 		for (int j = 0; j < toReturn.get_rows(); j++) {
 			count++;
-			cout << endl;
-			cout << j << endl;
-			cout << endl;
 			temp[0].add(target[0]);
 			temp[0].sub(toReturn[j]);
 			c1 = dotProduct(temp, gramBase[i]);
-			cout << "Pass 386" << endl;
 			c2 = dotProduct(gramBase[i], gramBase[i], dimension, dimension);
-			cout << "Pass 388" << endl;
 			c_unRND = c1 / c2;
-			cout << "Pass 390" << endl;
 			temp.fill(0);
-			cout << "Pass 392" << endl;
+			toCompute.resize(toCompute.get_rows() + buffer[i], dimension);
 			for (int k = 1; k <= buffer[i]; k++) {
 				if (k % 2 == 0){
 					l.floor(c_unRND);
-					cout << "Pass 396" << endl;
 				}
 				else{
 					l.floor(c_unRND + 1.0);
-					cout << "Pass 400" << endl;
 				}
 				temp1 = mul (base[i], l);
-				cout << "Pass 403" << endl;
 				temp1[0].add(toReturn[j]);
-				cout << "Pass 405" << endl;
-				toCompute[j].add(temp1[0]);
-				cout << "Pass 407" << endl;
+				toCompute[j + k - 1].add(temp1[0]);
 				temp1.fill(0);
-				cout << "Pass 409" << endl;
 			}	
 		}
 		toReturn.resize(toReturn.get_rows() + count, dimension);
-		cout << "Pass 413" << endl;
-		cout << endl;
-		cout << count << endl;
-		cout << endl;
-		for (int u = count; u < toReturn.get_rows(); u++) {
+		toReturn[count].fill(0);
+		toReturn[count].add(toCompute[0]);
+		for (int u = count + 1; u < toReturn.get_rows(); u++) {
 			toReturn[u].fill(0);
-			cout << endl;
-			cout << u - count << endl;
-			cout << endl;
 			toReturn[u].add(toCompute[u - count]);
 		}
-		cout << "Pass 418" << endl;
 		count = 0;
-		cout << "Pass 423" << endl;
 	}
-
+	return toReturn;
 }
 
 
@@ -469,20 +447,20 @@ int main(int argc, char** argv) {
 		cout << endl;
 		cout << base << endl;
 		cout << endl;
-		//cout << "Target Vector" << endl;
-		//cout << endl;
-		//cout << target << endl;
-		//cout << endl;
+		cout << "Target Vector" << endl;
+		cout << endl;
+		cout << target << endl;
+		cout << endl;
 		reduceLLL(base);
 		cout << "Lattice Base, LLL-reduced" << endl;
 		cout << endl;
 		cout << base << endl;
 		cout << endl;
 		gramBase = gSO (base, gramBase);
-		//cout << "Gram-Schmidt Lattice Base" << endl;
-		//cout << endl;
-		//cout << gramBase << endl;
-		//cout << endl;
+		cout << "Gram-Schmidt Lattice Base" << endl;
+		cout << endl;
+		cout << gramBase << endl;
+		cout << endl;
 		res = Lindner(base, gramBase, target, buffer);
 		cout << "Lindner's output:" << endl;
 		cout << endl;
