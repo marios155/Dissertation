@@ -1,0 +1,3 @@
+To avoid FATAL error : all CUDA devices are used in display and cannot be used for debugging,
+enter this in termional BEFORE running cuda-gdb
+$ export CUDA_DEBUGGER_SOFTWARE_PREEMPTION=1

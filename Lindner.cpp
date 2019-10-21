@@ -222,6 +222,7 @@ template <class T, class U> FP_NR<T> dotProduct (MatrixRow<Z_NR<U>> &&vector1, N
 	for (int j = 0; j <= i - 1; j++) {
 		vect[0].mul(vector2[j], vector1[j].get_ld(), MPFR_RNDN);
 		sum = sum + vect[0];
+		vect.fill(0.0);
 
 	}
 	return sum;
@@ -328,12 +329,12 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	temp.fill(0);
 	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
-	temp[0].add(base[dim - 2]);
+	/*temp[0].add(base[dim - 2]);
 	temp[1].add(base[dim - 1]);
 	base[dim - 2].fill(0);
 	base[dim - 2].add(temp[1]);
 	base[dim - 1].fill(0);
-	base[dim -1].add (temp[0]);
+	base[dim -1].add (temp[0]);*/
 	//cout << status << endl;
 	/*int status = lll_reduction(base, 0.75, 0.51, LM_PROVED, FT_MPFR, 0, LLL_DEFAULT);
 	MatGSO<Z_NR<mpz_t>, FP_NR<mpfr_t>> M (base, identity, idTrans, 0);
@@ -345,10 +346,10 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	@brief Function that implements Lindner-Peikert's generalization of Babai's Nearest Plane Algorithm for given target vector. Preprocessing is considered done.
 	
 	@param ZZ_mat<mpz_t> base: Base of integer lattice, reduced either by LLL or BKZ (choice to be implemented)
-	@param Matrix<FP_NR<mpfr_t>> gramBase: GSO-ed Lattice base of above lattice.
-	@param NumVect<FP_NR<mpfr_t>> target_vector: Target vector for which NP vector will be calculated
-	@param NumVect<Z_NR<mpz_t>> buffer: Initial distance vector of n elements, where n is base dimension. Usually filled with same integer number. 
-	@return: toReturn, NumVect<NumVect<FP_NR<mpfr_t>>> type, Nearest Plane vectors
+	@param NumVect<NumVect<FP_NR<mpfr_t>>> gramBase: GSO-ed Lattice base of above lattice.
+	@param ZZ_mat<mpz_t> target: Target vector for which NP vectors will be calculated
+	@param NumVect<int> buffer: Initial distance vector of n elements, where n is base dimension. Usually filled with same integer number. 
+	@return: toReturn, ZZ_mat<mpz_t> type, Nearest Plane vectors
 */
 
 ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gramBase, ZZ_mat<mpz_t> target, NumVect<int> buffer) {
@@ -373,6 +374,7 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 		toCompute.resize(toReturn.get_rows(), dimension);
 		toCompute.fill(0);
 		for (int j = 0; j < toReturn.get_rows(); j++) {
+			cout << toReturn[j] << endl;
 			count++;
 			temp[0].add(target[0]);
 			temp[0].sub(toReturn[j]);
@@ -394,6 +396,7 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 				temp1.fill(0);
 			}	
 		}
+		cout << endl;
 		toReturn.resize(toReturn.get_rows() + count, dimension);
 		toReturn[count].fill(0);
 		toReturn[count].add(toCompute[0]);
@@ -403,6 +406,7 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 		}
 		count = 0;
 	}
+	cout << endl;
 	return toReturn;
 }
 
