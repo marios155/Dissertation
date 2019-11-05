@@ -332,6 +332,12 @@ void set_basis_vector (double *basis_vector, vector<vector<double>> &basis, int 
 		}
 }
 
+void extract_vector(vector<double *> &list, double *vector, int current_element, int dimension) {
+	for (int i = 0; i < dimension; i++){
+		vector[i] = list[current_element][i];
+	}
+}
+
 void lindner (ZZ_mat<mpz_t> lattice, FP_mat<mpfr_t> gram, vector<double> &target, vector<int> buffer) {
 	int dim = lattice.get_rows();
 	vector<vector<double>> base (dim);
@@ -354,9 +360,12 @@ void lindner (ZZ_mat<mpz_t> lattice, FP_mat<mpfr_t> gram, vector<double> &target
 		set_basis_vector(basis_vector, base, i);
 		for (int j = 0; j < k; j++) {
 			double *result;
-			double * integers;
+			double *integers;
+			double *temp_vector; 
 			cudaMallocManaged(&result, sizeof(double));
 			cudaMallocManaged(&integers, buffer[i] * sizeof(double));
+			cudaMallocManaged(&temp_vector, dim * sizeof(double));
+			extract_vector(list, temp_vector, j, dim);
 			*result = 0.0;
 			*result = integer_production(list, gramBase, cuda_target, j, dim, i);
 			get_integers<<<1, buffer[i]>>> (result, integers);
@@ -369,12 +378,13 @@ void lindner (ZZ_mat<mpz_t> lattice, FP_mat<mpfr_t> gram, vector<double> &target
 				cudaMallocManaged(&additive, dim * sizeof(double));
 				vectorMult<<<1, dim>>> (basis_vector, integers[l], product);
 				cudaDeviceSynchronize();
-				vectorAdd<<<1, dim>>>(cuda_target, product, additive);
+				vectorAdd<<<1, dim>>>(temp_vector, product, additive);
 				cudaDeviceSynchronize();
 				temp_list.push_back(additive);
 				cudaFree(product);
 				cudaFree(additive);
 			}
+			cudaFree(temp_vector);
 			cudaFree(integers);
 			cudaFree(result);
 		}
