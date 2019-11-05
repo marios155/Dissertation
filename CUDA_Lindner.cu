@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <time.h>
+#include <math.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <gmp.h>
@@ -236,9 +237,35 @@ __global__ void vectorAdd (double *vector1, double *vector2, double *result) {
 __global__ void vectorSub (double *vector1, double *vector2, double *result) {
 	int index = threadIdx.x +blockIdx.x * blockDim.x;
 	result[threadIdx.x] = vector1[index] - vector2[index];
-}    
+}
 
+__global__ void vectorMult(double *vector, double multiplicant, double *result) {
+	int index = threadIdx.x + blockIdx.x * blockDim.x;
+	result[threadIdx.x] = vector[index] * multiplicant;
+}
 
+__global__ void get_integers (double *unrounded, double *result) {
+	int integer = floor(*unrounded);
+	if (threadIdx.x == 0) {
+		result[threadIdx.x] = integer;
+		return;
+	}
+	if (threadIdx.x == 1) {
+		result[threadIdx.x] = integer + 1;
+		return;
+	}
+	if (threadIdx.x == 2) {
+		result[threadIdx.x] = integer - 1;
+	}
+	if (threadIdx.x % 2 == 1) {
+		result[threadIdx.x] = integer + threadIdx.x - 1;
+		return;
+	}
+	if (threadIdx.x % 2 == 0) {
+		result[threadIdx.x] = integer - threadIdx.x + 1;
+		return;
+	}
+}
 
 double dot(vector<double> &vector1, vector<double> &vector2, int dim) {
 	double * realVector1;
@@ -260,6 +287,15 @@ double dot(vector<double> &vector1, vector<double> &vector2, int dim) {
 	cudaFree(realVector2);
 	cudaFree(total);
 	return *result;
+}
+
+void prepare_gram_dots (double *gramDP, double *list, vector<double> &target, double *cuda_target, vector<vector<double>> &gramBase) {
+	int dim = target.size();
+	for (int i = 0; i < dim; i++) {
+		cuda_target[i] = target[i];
+		list[i] = 0.0;
+		gramDP[i] = dot(gramBase[i], gramBase[i], dim);
+	}
 }
 
 double integer_production (vector <double *> &list, vector<vector<double>> &gramBase, double* cuda_target, int index, int dim, int position) {
@@ -290,48 +326,88 @@ double integer_production (vector <double *> &list, vector<vector<double>> &gram
 	return result;
 }
 
-void lindner (ZZ_mat<mpz_t> lattice, FP_mat<mpfr_t> gram, double* target, vector<int> buffer) {
+void set_basis_vector (double *basis_vector, vector<vector<double>> &basis, int index){
+	for (int u = 0; u < index; u++) {
+			basis_vector[u] = basis[index][u];
+		}
+}
+
+void lindner (ZZ_mat<mpz_t> lattice, FP_mat<mpfr_t> gram, vector<double> &target, vector<int> buffer) {
 	int dim = lattice.get_rows();
 	vector<vector<double>> base (dim);
 	vector<vector<double>> gramBase (dim);
-	vector<double *> list (dim);
+	vector<double *> list (1);
 	list[0] = new double [dim];
-	int k = 1;
-	double result = 0.0;
-	preprocess(lattice, gram, base, gramBase);
+	int k = list.size();
 	double *gramDP = new double[dim];
 	double *cuda_target;
 	cudaMallocManaged(&cuda_target, dim * sizeof(double));
+	preprocess(lattice, gram, base, gramBase);
 	lattice.clear();
 	gram.clear();
-	for (int i = 0; i < dim; i++) {
-		cuda_target[i] = target[i];
-		list[0][i] = 0.0;
-		gramDP[i] = dot(gramBase[i], gramBase[i], dim);
-	}
-	delete[] target;
+	prepare_gram_dots(gramDP, list[0], target, cuda_target, gramBase);
+	target.clear();
 	for (int i = dim -1; i >= 0; i--) {
-		double ** tempList = new double*[dim];
+		vector<double *> temp_list (k);
+		double * basis_vector;
+		cudaMallocManaged(&basis_vector, dim * sizeof(double));
+		set_basis_vector(basis_vector, base, i);
 		for (int j = 0; j < k; j++) {
-			result = integer_production(list, gramBase, cuda_target, j, dim, i);
-			cout << result << endl;
+			double *result;
+			double * integers;
+			cudaMallocManaged(&result, sizeof(double));
+			cudaMallocManaged(&integers, buffer[i] * sizeof(double));
+			*result = 0.0;
+			*result = integer_production(list, gramBase, cuda_target, j, dim, i);
+			get_integers<<<1, buffer[i]>>> (result, integers);
+			cudaDeviceSynchronize();
+			temp_list[j] = new double[dim];
+			for (int l = 0; l < buffer[i]; l++) {
+				double *product;
+				double *additive;
+				cudaMallocManaged(&product, dim * sizeof(double));
+				cudaMallocManaged(&additive, dim * sizeof(double));
+				vectorMult<<<1, dim>>> (basis_vector, integers[l], product);
+				cudaDeviceSynchronize();
+				vectorAdd<<<1, dim>>>(cuda_target, product, additive);
+				cudaDeviceSynchronize();
+				temp_list.push_back(additive);
+				cudaFree(product);
+				cudaFree(additive);
+			}
+			cudaFree(integers);
+			cudaFree(result);
 		}
-		delete[] tempList;
+		list.clear();
+		list.swap(temp_list);
+		temp_list.clear();
+		k = k * buffer[i];
+		cudaFree(basis_vector);
 	}
+	cout << "[";
+	for (int i = 0; i < 25; i++) {
+		cout << "[";
+		for (int j = 0; j < dim; j++) {
+			cout << list[i][j] << " ";
+		}
+		cout << "]" << endl;
+	}
+	cout << "]" << endl;
 }
 
 
 
 int main(int argc, char** argv) {
-	//int dim = atoi(argv[1]);
-	int dim = 5;
+	int dim = atoi(argv[1]);
+	//int dim = 5;
 	ZZ_mat<mpz_t> lattice;
 	FP_mat<mpfr_t> gramLattice;
 	vector<double> target;
 	vector<int> buffer (dim, 2);
 	if (dim > 0) {
-		lattice.resize(dim, dim);
+		//lattice.resize(dim, dim);
 		read_file(lattice, "storage");
+		//dim = lattice.get_cols();
 		gramLattice.resize(dim, dim);
 		get_gram(lattice, gramLattice);
 		read_vector(target, "vector");
@@ -339,12 +415,7 @@ int main(int argc, char** argv) {
 	else {
 		cout << "No dimension entered, program will exit." << endl;
 	}
-	double *targetReal = new double [dim];
-	for (int i = 0; i < dim; i++) {
-		targetReal[i] = target[i];
-	}
-	cout << endl;
-	lindner (lattice, gramLattice, targetReal, buffer);
+	lindner (lattice, gramLattice, target, buffer);
 	return 0;
 
 }
