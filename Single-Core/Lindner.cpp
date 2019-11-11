@@ -23,7 +23,7 @@ using namespace fplll;
 // Run with ./
 // Argument 1: "test" if you wish to test specific lattice, otherwise "0" for non-random, "1" for random
 // Argument 2: dimension of lattice
-// Argument 3: "0" for non-random vector (change values in lines 378-382), "1" for random, generated here
+// Argument 3: "0" for non-random vector, "1" for random, generated here
 
 /**
    @brief Read T from `input_filename`.
@@ -374,7 +374,6 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 		toCompute.resize(toReturn.get_rows(), dimension);
 		toCompute.fill(0);
 		for (int j = 0; j < toReturn.get_rows(); j++) {
-			cout << toReturn[j] << endl;
 			count++;
 			temp[0].add(target[0]);
 			temp[0].sub(toReturn[j]);
@@ -396,7 +395,6 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 				temp1.fill(0);
 			}	
 		}
-		cout << endl;
 		toReturn.resize(toReturn.get_rows() + count, dimension);
 		toReturn[count].fill(0);
 		toReturn[count].add(toCompute[0]);
@@ -406,7 +404,6 @@ ZZ_mat<mpz_t> Lindner (ZZ_mat<mpz_t> &base, NumVect<NumVect<FP_NR<mpfr_t>>> &gra
 		}
 		count = 0;
 	}
-	cout << endl;
 	return toReturn;
 }
 
@@ -441,11 +438,7 @@ int main(int argc, char** argv) {
 			target = randomSet(target);
 		}
 		else {
-			target[0][0] = 1;
-			target[0][1] = 0;
-			target[0][2] = 2;
-			target[0][3] = 1;
-			target[0][4] = 0;
+			status = read_file(target, "vector");
 		}
 		cout << "Lattice Base" << endl;
 		cout << endl;
@@ -461,10 +454,6 @@ int main(int argc, char** argv) {
 		cout << base << endl;
 		cout << endl;
 		gramBase = gSO (base, gramBase);
-		cout << "Gram-Schmidt Lattice Base" << endl;
-		cout << endl;
-		cout << gramBase << endl;
-		cout << endl;
 		res = Lindner(base, gramBase, target, buffer);
 		cout << "Lindner's output:" << endl;
 		cout << endl;
@@ -472,6 +461,6 @@ int main(int argc, char** argv) {
 		cout << endl;
 	}
 	else {
-		cerr << "Expected 4 arguments,"<< " " << argc << " " << "provided" << endl;
+		cerr << "Expected 4 arguments,"<< " " << argc - 1<< " " << "provided" << endl;
 	}
 }
