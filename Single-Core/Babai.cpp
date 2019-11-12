@@ -64,19 +64,19 @@ template <class T, class U> NumVect<FP_NR<T>> addRow (MatrixRow<Z_NR<U>> &&vecto
 
 /** 
 	@brief: Function that initializes a vector of given dimension with random numbers
-	@param NumVect<FP_NR<T>> vector: Vector to be randomized, called by reference
+	@param ZZ_mat<Z_NR<T>> &target: Vector to be randomized, called by reference
 	@return: vector, randomized by rand()
 
 */
 
-template <class T> NumVect<FP_NR<T>> randomSet (NumVect<FP_NR<T>> &vector) {
+void randomSet (ZZ_mat<mpz_t> &target) {
 	
-	for (int i = 0; i < vector.size(); i++) {
-
-		vector[i] = rand() % 100;// Instantiate each element by a random number, generated here
-
+	for (int i = 0; i < target.get_rows(); i++) {
+		for (int j = 0; j < target.get_cols(); j++) {
+			
+			target[i][j] = rand() % 100;// Instantiate each element by a random number, generated here
+		}
 	}
-	return vector;
 
 }
 
@@ -209,6 +209,22 @@ template <class T> FP_NR<T> dotProduct (NumVect<FP_NR<T>> &vector1, NumVect<FP_N
 
 }
 
+/**
+	@brief Function that converts target vector from integer to real
+	
+	@param NumVect<FP_NR<T>> vector: The real vector, output of the function, called by reference.
+	@param ZZ_mat<Z_NR<U>> &target: The target vector, called by reference
+	@param int dim: The number of elements in the target vector.
+
+*/
+
+template <class T> void initialize (NumVect<NumVect<FP_NR<T>>> &vector, ZZ_mat<mpz_t> &target, int dim) {
+	vector[dim - 1].resize(dim);
+	for (int i = 0; i < dim; i++) {
+		vector[dim - 1][i] = target[0][i].get_si();
+	}
+}
+
 
 /**
 	@brief Function that generates base for Lattice of given dimension, with or without random seed
@@ -296,7 +312,6 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	temp.fill(0);
 	Wrapper *wrapper = new Wrapper (base, identity, idTrans, 0.75, 0.51, LLL_DEFAULT);
 	bool status = wrapper -> lll();
-	cout << status << endl;
 	temp[0].add(base[dim - 2]);
 	temp[1].add(base[dim - 1]);
 	base[dim - 2].fill(0);
@@ -318,7 +333,7 @@ void reduceLLL (ZZ_mat<mpz_t> & base) {
 	@return: toReturn, NumVect<FP_NR<mpfr_t>> type, Nearest Plane vector
 */
 
-NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR<mpfr_t>>> & gramBase, NumVect<FP_NR<mpfr_t>> target_vector, int dim) {
+NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR<mpfr_t>>> & gramBase, ZZ_mat<mpz_t> target_vector, int dim) {
 	// See pseudocode of NPA presented in "The (R)LWE problem on cryptography" master thesis by Michael Anastasiadis, pp. 29-30
 	//link here: https://ikee.lib.auth.gr/record/300429/?ln=el
 	NumVect<NumVect<FP_NR<mpfr_t>>> w(dim);
@@ -331,7 +346,7 @@ NumVect<FP_NR<mpfr_t>> babai (ZZ_mat<mpz_t> & base, NumVect<NumVect<FP_NR<mpfr_t
 	FP_NR<mpfr_t> l = 0.0;
 	FP_NR<mpfr_t> l_unRND = 0.0;
 	NumVect<FP_NR<mpfr_t>> gSOMult(dim);
-	w[dim - 1] = target_vector;
+	initialize(w, target_vector, dim);
 	for (int i = dim - 1; i >= 0; i--) {
 		//l[i] =  <w[i], b[i]*> / <b[i]*, b[i]*>
 		l1 = dotProduct(w[i], gramBase[i], w[i].size(), gramBase[i].size());
@@ -364,7 +379,7 @@ int main(int argc, char** argv) {
 	if (argc == 4) {
 		int dim = atoi(argv[2]);
 		NumVect<NumVect<FP_NR<mpfr_t>>> gramBase(dim);
-		NumVect<FP_NR<mpfr_t>> target(dim);
+		ZZ_mat<mpz_t> target(1, dim);
 		NumVect<FP_NR<mpfr_t>> test(dim);
 		base.resize(dim, dim);
 		target.fill(0.0);
@@ -381,14 +396,10 @@ int main(int argc, char** argv) {
 			}
 		}
 		if (strcmp(argv[3], "1") ==0) {
-			target = randomSet(target);
+			randomSet(target);
 		}
 		else {
-			target[0] = 1.0;
-			target[1] = 0.0;
-			target[2] = 2.0;
-			target[3] = 1.0;
-			target[4] = 0.0;
+			status = read_file(target, "vector");
 		}
 		cout << "Lattice Base" << endl;
 		cout << endl;
@@ -404,11 +415,7 @@ int main(int argc, char** argv) {
 		cout << base << endl;
 		cout << endl;
 		gramBase = gSO (base, gramBase);
-		cout << "Gram-Schmidt Lattice Base" << endl;
-		cout << endl;
-		cout << gramBase << endl;
-		cout << endl;
-		test = babai(base, gramBase, target, 5);
+		test = babai(base, gramBase, target, dim);
 		cout << "Babai's output:" << endl;
 		cout << endl;
 		cout << test << endl;
