@@ -71,12 +71,10 @@ template <class T, class U> NumVect<FP_NR<T>> addRow (MatrixRow<Z_NR<U>> &&vecto
 */
 
 template <class T> ZZ_mat<T> randomSet (ZZ_mat<T> &target) {
-	
-	for (int i = 0; i < target.get_cols(); i++) {
-		for (int j = 0; j < target.get_rows(); j++) {
+	for (int i = 0; i < target.get_rows(); i++) {
+		for (int j = 0; j < target.get_cols(); j++) {
 			
 			target[i][j] = rand() % 100;// Instantiate each element by a random number, generated here
-
 		}
 		
 	}
@@ -461,6 +459,6 @@ int main(int argc, char** argv) {
 		cout << endl;
 	}
 	else {
-		cerr << "Expected 4 arguments,"<< " " << argc - 1<< " " << "provided" << endl;
+		cerr << "Expected 3 arguments,"<< " " << argc - 1<< " " << "provided" << endl;
 	}
 }
