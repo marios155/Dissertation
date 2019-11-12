@@ -1,0 +1,26 @@
+In order to compile the file, use the following command:
+	
+	g++ -std=c++11 -O3 -march=native Lindner.cpp -lfplll -lmpfr -lgmp  -o <your_executable's_name>
+	
+To run the executable you have compiled above, type:
+
+	./<your_executable's_name>
+	
+BEFORE PRESSING ENTER, you MUST insert certain parameters after the above command, separated with " ":
+	
+	- "test" if you wish to test a specific basis of your own. This MUST be provided in a file named "lattice", placed IN THE SAME DIRECTORY as the executable.
+		Otherwise, you can insert "0" to test a non-random lattice basis (to ensure reproducibility or to check the algorithm's behavior) OR you can insert "1"
+		to generate a random lattice basis, based on current clock time.
+	- The rank of the lattice basis, as well as the number of elements in each vector (All lattice bases are, for the moment, n x n, this will soon be fixed).
+	- "0" To provide a non-random vector as target. Like the basis, this MUST be provided in a file named "vector", placed IN THE SAME DIRECTORY as the executable.
+		Otherwise, you can insert "1" to generate a random target vector.
+
+For example, say that we want to perform NPA on a 10x10 basis, which we have stored in a file. We also have a target vector with 10 elements.
+First, we rename the file "lattice", and place it in the same directory as the executable. Then, we compile the source file. For the sake of
+the demnostration we name the executable npa_algorithm:
+	
+	g++ -std=c++11 -O3 -march=native Lindner.cpp -lfplll -lmpfr -lgmp  -o npa_algorithm
+	
+Now, we will run the executable. To recap, we want to add "test", "10" and "0" after the executable name. As such, the console command is as follows:
+
+	./npa_algorithm test 10 0
