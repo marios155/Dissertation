@@ -1,0 +1,24 @@
+In order to compile the file, use the following command:
+	
+	nvcc CUDA_Lindner.cu -lfplll -lmpfr -lgmp  -o <your_executable's_name>
+	
+To run the executable you have compiled above, type:
+
+	./<your_executable's_name>
+	
+This program assumes that you want to run multi-core implementation for the sake of speed. Therefore, it ONLY SUPPROTS input from
+specific files. The basis is read from a file named "storage", whereas the vector is read, again, from a file named "vector".
+Both files MUST BE IN THE SAME DIRECTORY AS THE EXECUTABLE. Most importantly, the program itself performs NO REDUCTION on the basis,
+as it assumes that it has been preprocessed accordingly (either with LLL or BKZ reduction).
+
+BEFORE PRESSING ENTER, you MUST insert the dimension of the basis after the executable name, separated with " ". All lattice bases are, for the moment,
+n x n, this will soon be fixed). For example, assume that we want to run NPA on a basis of 20x20. We have already named our files "storage" and "vector"
+and placed them appropriately. For the sake of the demonstration, the exectuable will be named multicore_npa. First, we compile:
+
+	nvcc CUDA_Lindner.cu -lfplll -lmpfr -lgmp  -o multicore_npa
+	
+Then, we run the executable. We have a basis of 20x20, so we will insert "20" after the executable's name.
+
+	./multicore_npa 20
+	
+	
