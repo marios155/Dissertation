@@ -12,7 +12,7 @@ using namespace fplll;
 void parse_to_file (const char* filename, vector<string> &values)
 {
     ofstream outFile(filename);
-    for (const auto &value : values) outFile << values << "\n";
+    for (const auto &value : values) outFile << value << "\n";
 }
 
 void delete_file_lines (const char *filename, int lines) 
@@ -106,8 +106,6 @@ int read_vector (const char *filename, int lines, vector<string> &values) {
 		getline(stream, line);
 		while (line.find("[[") == -1)
 		{
-			cout << line << endl;
-			cout << endl;
 			values.push_back(line);
 			getline(stream, line);
 
@@ -130,11 +128,14 @@ int main (int argc, char** argv)
 	vector<string> parameters;
 	vector<string> values;
 	int status = 0;
-	status |= read_parameters(argv[2], atoi(argv[1]), parameters);
+	status |= read_parameters (argv[2], atoi(argv[1]), parameters);
 	status |= read_vector ("temp", stoi(parameters[1]), values);
+	parse_to_file ("parameters", parameters);
+	parse_to_file ("vector", values);
 	if (status == 0)
 	{
-		cout << "File parsed correctly." << endl;
+		cout << "Files parsed correctly." << endl;
+		remove("temp");
 	}
 	else
 	{
